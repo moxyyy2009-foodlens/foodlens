@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="theme-color" content="#052e16"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="FoodLens"/>
+<meta name="description" content="See through your food. Real ingredients, transparent scores."/>
+<title>FoodLens — See Through Your Food</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+<style>
+  :root {
+    --green-900: #052e16;
+    --green-800: #14532d;
+    --green-700: #15803d;
+    --green-600: #16a34a;
+    --green-400: #4ade80;
+    --green-100: #dcfce7;
+    --green-50: #f0fdf4;
+    --white: #ffffff;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-400: #9ca3af;
+    --gray-600: #4b5563;
+    --gray-800: #1f2937;
+    --red: #ef4444;
+    --orange: #f97316;
+    --yellow: #eab308;
+    --star-on: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--green-50); color: var(--gray-800); min-height: 100vh; overscroll-behavior: none; }
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: block; }
+  /* LOGO SVG */
+  .logo-wrap { display: flex; align-items: center; gap: 10px; }
+  .logo-text { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 800; color: #f0fdf4; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--green-400); }
+  /* HERO */
+  .hero { background: linear-gradient(155deg, var(--green-900) 0%, var(--green-800) 55%, #166534 100%); padding: 44px 20px 60px; position: relative; overflow: hidden; }
+  .hero::before { content:''; position:absolute; top:-60px; right:-60px; width:260px; height:260px; background:rgba(74,222,128,0.05); border-radius:50%; }
+  .hero::after { content:''; position:absolute; bottom:-50px; left:-50px; width:200px; height:200px; background:rgba(134,239,172,0.04); border-radius:50%; }
+  .hero-content { position: relative; }
+  .hero-badge { font-size: 10px; letter-spacing: 5px; color: #86efac; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .hero-title { font-family: 'Playfair Display', serif; font-size: clamp(28px, 8vw, 46px); color: #f0fdf4; line-height: 1.2; font-weight: 800; margin-bottom: 10px; }
+  .hero-sub { color: #bbf7d0; font-size: 14px; line-height: 1.8; margin-bottom: 28px; max-width: 320px; }
+  /* SEARCH */
+  .search-row { display: flex; gap: 8px; max-width: 500px; }
+  .search-box { flex: 1; display: flex; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
+  .search-box input { flex: 1; border: none; outline: none; padding: 14px 10px 14px 0; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--gray-800); background: transparent; }
+  .search-icon { padding: 0 14px; display: flex; align-items: center; color: var(--gray-400); font-size: 18px; }
+  .search-clear { background: none; border: none; padding: 0 14px; cursor: pointer; color: var(--gray-400); font-size: 20px; }
+  .btn-search { background: var(--green-600); color: #fff; border: none; border-radius: 14px; padding: 0 18px; font-weight: 700; font-size: 14px; cursor: pointer; font-family: 'DM Sans', sans-serif; flex-shrink: 0; transition: background 0.2s; }
+  .btn-search:hover { background: var(--green-700); }
+  .btn-search:disabled { background: var(--green-100); color: var(--green-600); cursor: not-allowed; }
+  .btn-camera { background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; width: 52px; height: 52px; font-size: 22px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+  .btn-camera:hover { background: rgba(255,255,255,0.25); }
+  /* SEARCH RESULTS DROPDOWN */
+  .search-dropdown { margin-top: 10px; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.25); max-width: 500px; max-height: 380px; overflow-y: auto; }
+  .search-header { padding: 10px 16px; background: var(--green-50); font-size: 11px; color: var(--green-600); letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }
+  .search-item { padding: 13px 16px; border-bottom: 1px solid var(--green-50); cursor: pointer; display: flex; align-items: center; gap: 12px; background: #fff; transition: background 0.1s; }
+  .search-item:hover { background: var(--green-50); }
+  .search-item:last-child { border-bottom: none; }
+  .search-thumb { width: 46px; height: 46px; object-fit: contain; border-radius: 8px; border: 1px solid var(--gray-200); flex-shrink: 0; }
+  .search-thumb-placeholder { width: 46px; height: 46px; background: var(--green-50); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+  .search-name { font-weight: 600; font-size: 14px; color: var(--gray-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search-brand { font-size: 12px; color: var(--gray-400); margin-top: 1px; }
+  .search-score-col { text-align: center; flex-shrink: 0; }
+  .search-score-num { font-weight: 800; font-size: 18px; font-family: 'Playfair Display', serif; }
+  /* QUOTE */
+  .quote-card { background: #fff; border-radius: 14px; padding: 16px 18px; margin-top: -24px; box-shadow: 0 4px 20px rgba(0,0,0,0.07); border-left: 4px solid var(--green-600); margin-bottom: 6px; }
+  .quote-text { font-size: 14px; color: var(--green-800); font-style: italic; line-height: 1.75; }
+  .quote-author { font-size: 12px; color: var(--gray-400); margin-top: 5px; }
+  /* AD BANNER */
+  .ad-banner { background: linear-gradient(135deg, var(--green-900), var(--green-800)); border-radius: 12px; padding: 11px 16px; margin: 14px 0; text-align: center; color: #86efac; font-size: 12px; font-style: italic; border: 1px solid rgba(22,163,74,0.2); }
+  .ad-label { opacity: 0.5; font-size: 10px; }
+  /* RATING GUIDE */
+  .section-label { font-size: 11px; letter-spacing: 2px; color: var(--gray-400); text-transform: uppercase; margin-bottom: 12px; margin-top: 8px; }
+  .rating-guide { background: #fff; border-radius: 14px; overflow: hidden; border: 1px solid var(--green-100); margin-bottom: 20px; }
+  .rating-row { padding: 12px 16px; border-bottom: 1px solid var(--green-50); display: flex; align-items: center; gap: 12px; }
+  .rating-row:last-child { border-bottom: none; }
+  .stars { display: flex; gap: 2px; }
+  .star { font-size: 16px; }
+  .rating-label { font-weight: 700; font-size: 13px; }
+  .rating-desc { font-size: 12px; color: var(--gray-400); margin-left: 6px; }
+  /* HOW IT WORKS */
+  .how-card { background: #fff; border: 1px solid var(--green-100); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start; }
+  .how-icon { font-size: 24px; flex-shrink: 0; }
+  .how-title { font-weight: 600; font-size: 14px; color: var(--green-800); margin-bottom: 3px; }
+  .how-desc { font-size: 13px; color: var(--gray-600); line-height: 1.6; }
+  /* TIPS */
+  .tip-card { background: #fff; border: 1px solid var(--green-100); border-radius: 12px; padding: 13px 16px; margin-bottom: 10px; display: flex; gap: 12px; }
+  /* FOOTER NOTE */
+  .footer-note { font-size: 11px; color: var(--gray-400); text-align: center; margin: 16px 0 24px; line-height: 1.8; }
+  /* ERROR LOG BUTTON */
+  .btn-errlog { position: fixed; bottom: 20px; right: 16px; background: #1f2937; color: #fff; border: none; border-radius: 50px; padding: 10px 16px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,0.3); z-index: 999; display: none; }
+  /* PRODUCT DETAIL */
+  .product-hero { background: linear-gradient(155deg, var(--green-900), var(--green-800)); position: relative; }
+  .back-btn { position: absolute; top: 16px; left: 16px; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: #f0fdf4; font-size: 14px; cursor: pointer; padding: 8px 14px; z-index: 10; font-family: 'DM Sans', sans-serif; }
+  .nutriscore-badge { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.15); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: #f0fdf4; font-weight: 700; }
+  .product-img-wrap { display: flex; justify-content: center; padding: 52px 20px 16px; }
+  .product-img { max-height: 170px; max-width: 65%; object-fit: contain; border-radius: 12px; background: rgba(255,255,255,0.07); padding: 10px; }
+  .product-img-placeholder { width: 130px; height: 130px; background: rgba(255,255,255,0.1); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 58px; }
+  .product-info { padding: 0 20px 28px; display: flex; gap: 16px; align-items: flex-start; }
+  .product-name { font-family: 'Playfair Display', serif; font-size: 20px; color: #f0fdf4; font-weight: 800; line-height: 1.25; }
+  .product-brand { font-size: 12px; color: #86efac; margin-top: 4px; }
+  .product-stars-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
+  .product-star-label { font-size: 14px; font-weight: 700; }
+  /* SCORE RING */
+  .score-ring-wrap { position: relative; flex-shrink: 0; }
+  .score-ring-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-weight: 800; }
+  /* TABS */
+  .tabs-row { display: flex; gap: 8px; padding: 0 16px 0; margin-bottom: 16px; overflow-x: auto; padding-bottom: 2px; }
+  .tabs-row::-webkit-scrollbar { display: none; }
+  .tab-btn { padding: 8px 16px; border-radius: 20px; border: none; cursor: pointer; white-space: nowrap; font-size: 13px; font-family: 'DM Sans', sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,0.08); transition: all 0.2s; }
+  .tab-btn.active { background: var(--green-600); color: #fff; font-weight: 700; }
+  .tab-btn:not(.active) { background: #fff; color: var(--gray-600); }
+  .tab-content { display: none; padding: 0 16px; }
+  .tab-content.active { display: block; }
+  /* NUTRITION TABLE */
+  .nutr-card { background: #fff; border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+  .nutr-header { font-size: 11px; color: var(--gray-400); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+  .nutr-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--green-50); }
+  .nutr-row:last-child { border-bottom: none; }
+  .nutr-label { font-size: 13px; color: #374151; }
+  .nutr-value { font-size: 13px; font-weight: 700; }
+  .nutr-value.warn { color: var(--red); }
+  .nutr-value.ok { color: var(--green-800); }
+  /* INGREDIENTS */
+  .ingr-box { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); font-size: 13px; color: #374151; line-height: 2; word-break: break-word; }
+  /* SCORE BREAKDOWN */
+  .score-card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+  .score-top { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+  .score-factor { margin-bottom: 16px; }
+  .score-factor-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+  .score-factor-label { font-size: 13px; font-weight: 600; color: var(--gray-800); }
+  .score-factor-pts { font-size: 13px; font-weight: 800; }
+  .score-bar-bg { background: var(--gray-100); border-radius: 6px; height: 7px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+  .score-source { font-size: 11px; color: var(--gray-400); margin-top: 3px; }
+  /* CONCERNS */
+  .concern-intro { font-size: 13px; color: var(--gray-600); margin-bottom: 14px; line-height: 1.6; }
+  .concern-card { background: #fff; border: 1px solid #fecaca; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .concern-name { font-weight: 700; font-size: 14px; color: var(--gray-800); margin-bottom: 6px; text-transform: capitalize; }
+  .concern-text { font-size: 13px; color: #374151; line-height: 1.65; margin-bottom: 8px; }
+  .concern-source { font-size: 11px; color: var(--gray-400); background: #fef2f2; padding: 5px 10px; border-radius: 8px; display: inline-block; }
+  .no-concern { background: #fff; border-radius: 14px; padding: 24px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+  /* ALTERNATIVES */
+  .alt-intro { font-size: 13px; color: var(--gray-600); margin-bottom: 14px; line-height: 1.6; }
+  .alt-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+  .alt-scroll::-webkit-scrollbar { height: 4px; }
+  .alt-scroll::-webkit-scrollbar-track { background: var(--green-50); border-radius: 4px; }
+  .alt-scroll::-webkit-scrollbar-thumb { background: var(--green-400); border-radius: 4px; }
+  .alt-card { flex-shrink: 0; width: 160px; background: #fff; border: 1px solid var(--green-100); border-radius: 14px; overflow: hidden; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform 0.15s, box-shadow 0.15s; }
+  .alt-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+  .alt-img-wrap { height: 100px; background: var(--green-50); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .alt-img { max-height: 90px; max-width: 90%; object-fit: contain; }
+  .alt-img-placeholder { font-size: 40px; }
+  .alt-card-body { padding: 10px; }
+  .alt-card-name { font-weight: 600; font-size: 12px; color: var(--green-800); line-height: 1.4; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .alt-card-brand { font-size: 11px; color: var(--gray-400); margin-bottom: 6px; }
+  .alt-card-score { display: flex; align-items: center; gap: 5px; }
+  .alt-score-num { font-size: 16px; font-weight: 800; font-family: 'Playfair Display', serif; }
+  /* BARCODE SCANNER */
+  .scanner-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
+  .scanner-overlay.open { display: flex; }
+  .scanner-title { color: #fff; font-size: 18px; font-weight: 700; margin-bottom: 8px; font-family: 'Playfair Display', serif; }
+  .scanner-sub { color: #86efac; font-size: 13px; margin-bottom: 20px; text-align: center; }
+  #scanner-video { width: 300px; height: 300px; object-fit: cover; border-radius: 16px; border: 3px solid var(--green-400); }
+  .scanner-frame { position: relative; width: 300px; height: 300px; margin-bottom: 20px; }
+  .scanner-corner { position: absolute; width: 30px; height: 30px; border-color: var(--green-400); border-style: solid; }
+  .scanner-corner.tl { top: -3px; left: -3px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+  .scanner-corner.tr { top: -3px; right: -3px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+  .scanner-corner.bl { bottom: -3px; left: -3px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+  .scanner-corner.br { bottom: -3px; right: -3px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+  .btn-close-scanner { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 50px; padding: 12px 28px; font-size: 15px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  /* LOADING */
+  .loading-wrap { text-align: center; padding: 50px 20px; }
+  .loading-icon { font-size: 40px; display: inline-block; animation: spin 1.2s linear infinite; }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  .loading-text { color: var(--green-600); font-weight: 600; font-size: 15px; margin-top: 14px; }
+  .loading-sub { color: var(--gray-400); font-size: 13px; margin-top: 6px; }
+  /* EMPTY / ERROR */
+  .msg-box { background: #fff; border-radius: 14px; padding: 24px; text-align: center; margin: 12px 0; }
+  .msg-icon { font-size: 36px; margin-bottom: 12px; }
+  .msg-title { font-weight: 600; color: var(--green-800); margin-bottom: 6px; font-size: 15px; }
+  .msg-text { font-size: 13px; color: var(--gray-400); line-height: 1.7; }
+  .error-msg { background: rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 16px; color: #fde68a; font-size: 13px; margin-top: 12px; max-width: 500px; }
+  /* PADDING WRAPPER */
+  .page-pad { padding: 0 16px; }
+  .spacer { height: 80px; }
+  /* INSTALL BANNER */
+  .install-banner { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--green-800); padding: 14px 16px; z-index: 998; box-shadow: 0 -4px 20px rgba(0,0,0,0.2); }
+  .install-row { display: flex; align-items: center; gap: 12px; }
+  .install-text { flex: 1; color: #f0fdf4; font-size: 13px; line-height: 1.5; }
+  .install-text strong { display: block; font-size: 14px; }
+  .btn-install { background: var(--green-400); color: var(--green-900); border: none; border-radius: 10px; padding: 10px 16px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif; flex-shrink: 0; }
+  .btn-dismiss { background: none; border: none; color: #86efac; font-size: 20px; cursor: pointer; padding: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ HOME SCREEN -->
+<div id="screen-home" class="screen active">
+  <div class="hero">
+    <div class="hero-content">
+      <div class="logo-wrap hero-badge">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <circle cx="14" cy="14" r="10" stroke="#4ade80" stroke-width="2.5" fill="none"/>
+          <circle cx="14" cy="14" r="5" fill="#4ade80" opacity="0.3"/>
+          <circle cx="14" cy="14" r="2" fill="#4ade80"/>
+          <line x1="21" y1="21" x2="29" y2="29" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M10 9 Q14 6 18 9" stroke="#86efac" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span class="logo-text">Food<span>Lens</span></span>
+      </div>
+      <h1 class="hero-title">See Through<br/>Your Food</h1>
+      <p class="hero-sub">Real ingredient data. Factual health scores.<br/>Millions of products from Open Food Facts.</p>
+      <div class="search-row">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Coca-Cola, Maggi, Lays, KitKat..." autocomplete="off" autocorrect="off"/>
+          <button class="search-clear" id="btn-clear" style="display:none" onclick="clearSearch()">×</button>
+        </div>
+        <button class="btn-search" id="btn-search" onclick="doSearch()">Search</button>
+        <button class="btn-camera" onclick="openScanner()" title="Scan barcode">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f0fdf4" stroke-width="2" stroke-linecap="round">
+            <rect x="2" y="6" width="4" height="12" rx="1"/><rect x="7" y="6" width="2" height="12" rx="1"/>
+            <rect x="10" y="6" width="3" height="12" rx="1"/><rect x="14" y="6" width="1" height="12" rx="1"/>
+            <rect x="16" y="6" width="3" height="12" rx="1"/><rect x="20" y="6" width="2" height="12" rx="1"/>
+          </svg>
+        </button>
+      </div>
+      <div id="search-status"></div>
+      <div id="search-dropdown" class="search-dropdown" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="page-pad">
+    <div class="quote-card">
+      <div class="quote-text" id="quote-text"></div>
+      <div class="quote-author" id="quote-author"></div>
+    </div>
+    <div class="ad-banner">📢 <span class="ad-label">[AD SPACE] </span>Eat Smarter. Live Longer. 🌿 Your health is your greatest wealth.</div>
+    <div class="section-label">⭐ FoodLens Star Rating</div>
+    <div class="rating-guide">
+      <div class="rating-row"><div class="stars"><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#fbbf24">★</span></div><span class="rating-label" style="color:#16a34a">Excellent</span><span class="rating-desc">Great for regular consumption</span></div>
+      <div class="rating-row"><div class="stars"><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#e5e7eb">★</span></div><span class="rating-label" style="color:#22c55e">Great</span><span class="rating-desc">Good nutritional value</span></div>
+      <div class="rating-row"><div class="stars"><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#e5e7eb">★</span><span class="star" style="color:#e5e7eb">★</span></div><span class="rating-label" style="color:#eab308">Good</span><span class="rating-desc">Fine in balanced amounts</span></div>
+      <div class="rating-row"><div class="stars"><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#e5e7eb">★</span><span class="star" style="color:#e5e7eb">★</span><span class="star" style="color:#e5e7eb">★</span></div><span class="rating-label" style="color:#f97316">Moderate</span><span class="rating-desc">Best consumed occasionally</span></div>
+      <div class="rating-row"><div class="stars"><span class="star" style="color:#fbbf24">★</span><span class="star" style="color:#e5e7eb">★</span><span class="star" style="color:#e5e7eb">★</span><span class="star" style="color:#e5e7eb">★</span><span class="star" style="color:#e5e7eb">★</span></div><span class="rating-label" style="color:#ef4444">Bad</span><span class="rating-desc">Consume rarely in small amounts</span></div>
+    </div>
+    <div class="section-label">How FoodLens Works</div>
+    <div class="how-card"><span class="how-icon">🔍</span><div><div class="how-title">Search any product</div><div class="how-desc">Type any food, brand or scan a barcode. We search millions of real products.</div></div></div>
+    <div class="how-card"><span class="how-icon">📊</span><div><div class="how-title">Real verified data</div><div class="how-desc">All data from Open Food Facts — an open verified global food database.</div></div></div>
+    <div class="how-card"><span class="how-icon">⭐</span><div><div class="how-title">Transparent scoring</div><div class="how-desc">Scored using WHO, AHA & ICMR official guidelines. Every factor explained.</div></div></div>
+    <div class="how-card"><span class="how-icon">🥗</span><div><div class="how-title">Better alternatives</div><div class="how-desc">Discover healthier options in the same food category with real comparisons.</div></div></div>
+    <div class="ad-banner">💚 <span class="ad-label">[AD SPACE] </span>Sponsored: Go Organic — Feel the difference in 30 days</div>
+    <div class="section-label">Daily Health Tips</div>
+    <div class="tip-card"><span style="font-size:20px">💧</span><span style="font-size:13px;color:#374151;line-height:1.6">Drink at least 8 glasses of water daily. WHO recommends water as the first choice beverage.</span></div>
+    <div class="tip-card"><span style="font-size:20px">🏷️</span><span style="font-size:13px;color:#374151;line-height:1.6">Always read the full ingredients list — not just the nutrition table on packaged food.</span></div>
+    <div class="tip-card"><span style="font-size:20px">🌾</span><span style="font-size:13px;color:#374151;line-height:1.6">Replace refined flour (maida) with whole wheat atta. ICMR recommends whole grains daily.</span></div>
+    <div class="footer-note">
+      Data sourced from Open Food Facts (openfoodfacts.org)<br/>
+      Scoring based on WHO, AHA & ICMR official guidelines<br/>
+      FoodLens provides information only — not medical advice
+    </div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ DETAIL SCREEN -->
+<div id="screen-detail" class="screen">
+  <div class="product-hero" id="detail-hero">
+    <button class="back-btn" onclick="goHome()">← Back</button>
+    <div id="detail-nutriscore" class="nutriscore-badge" style="display:none"></div>
+    <div class="product-img-wrap" id="detail-img-wrap"></div>
+    <div class="product-info">
+      <div id="detail-score-ring"></div>
+      <div style="flex:1">
+        <div class="product-name" id="detail-name"></div>
+        <div class="product-brand" id="detail-brand"></div>
+        <div class="product-stars-row">
+          <div id="detail-stars"></div>
+          <span class="product-star-label" id="detail-star-label"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="padding: 16px 16px 0">
+    <div class="ad-banner">📢 <span class="ad-label">[AD] </span>Eat Smarter. Live Longer. 🌿</div>
+  </div>
+  <div class="tabs-row" id="tabs-row">
+    <button class="tab-btn active" onclick="switchTab('nutrition')">📊 Nutrition</button>
+    <button class="tab-btn" onclick="switchTab('ingredients')">🧪 Ingredients</button>
+    <button class="tab-btn" onclick="switchTab('score')">⭐ Score</button>
+    <button class="tab-btn" onclick="switchTab('concerns')">⚠️ Concerns</button>
+    <button class="tab-btn" onclick="switchTab('alternatives')">🥗 Alternatives</button>
+  </div>
+  <div id="tab-nutrition" class="tab-content active"></div>
+  <div id="tab-ingredients" class="tab-content"></div>
+  <div id="tab-score" class="tab-content"></div>
+  <div id="tab-concerns" class="tab-content"></div>
+  <div id="tab-alternatives" class="tab-content"></div>
+  <div class="spacer"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ BARCODE SCANNER -->
+<div class="scanner-overlay" id="scanner-overlay">
+  <div class="scanner-title">Scan Barcode</div>
+  <div class="scanner-sub">Point camera at the barcode on the product</div>
+  <div class="scanner-frame">
+    <video id="scanner-video" autoplay playsinline muted></video>
+    <div class="scanner-corner tl"></div>
+    <div class="scanner-corner tr"></div>
+    <div class="scanner-corner bl"></div>
+    <div class="scanner-corner br"></div>
+  </div>
+  <div id="scanner-status" style="color:#86efac;font-size:13px;margin-bottom:16px;text-align:center"></div>
+  <button class="btn-close-scanner" onclick="closeScanner()">✕ Close Scanner</button>
+</div>
+
+<!-- ERROR LOG BUTTON -->
+<button class="btn-errlog" id="btn-errlog" onclick="downloadErrorLog()">📋 Download Error Log</button>
+
+<!-- INSTALL BANNER -->
+<div class="install-banner" id="install-banner">
+  <div class="install-row">
+    <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+      <circle cx="14" cy="14" r="10" stroke="#4ade80" stroke-width="2.5" fill="none"/>
+      <circle cx="14" cy="14" r="2" fill="#4ade80"/>
+      <line x1="21" y1="21" x2="29" y2="29" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    <div class="install-text"><strong>Install FoodLens</strong>Add to home screen for quick access</div>
+    <button class="btn-install" id="btn-install-confirm">Install</button>
+    <button class="btn-dismiss" onclick="dismissInstall()">×</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// ERROR LOGGER
+// ═══════════════════════════════════════════════════════════════════════════
+const errorLog = [];
+function logError(context, message, detail) {
+  const entry = {
+    num: errorLog.length + 1,
+    time: new Date().toISOString(),
+    context,
+    message,
+    detail: detail || ''
+  };
+  errorLog.push(entry);
+  console.error(`[FoodLens Error #${entry.num}]`, context, message, detail);
+  document.getElementById('btn-errlog').style.display = 'block';
+}
+function downloadErrorLog() {
+  if (errorLog.length === 0) { alert('No errors logged!'); return; }
+  let txt = 'FOODLENS ERROR LOG\n==================\n\n';
+  errorLog.forEach(e => {
+    txt += `Error #${e.num}\nTime: ${e.time}\nContext: ${e.context}\nMessage: ${e.message}\nDetail: ${e.detail}\n\n`;
+  });
+  txt += `\nTotal errors: ${errorLog.length}`;
+  const blob = new Blob([txt], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'foodlens-errors.txt';
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// QUOTES
+// ═══════════════════════════════════════════════════════════════════════════
+const QUOTES = [
+  { text: "Let food be thy medicine and medicine be thy food.", author: "Hippocrates" },
+  { text: "You are what you eat. Don't be fast, cheap, easy, or fake.", author: "Unknown" },
+  { text: "Take care of your body. It's the only place you have to live.", author: "Jim Rohn" },
+  { text: "The food you eat can be the safest medicine or the slowest poison.", author: "Ann Wigmore" },
+];
+const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+document.getElementById('quote-text').textContent = `"${q.text}"`;
+document.getElementById('quote-author').textContent = `— ${q.author}`;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INGREDIENT CONCERNS DATABASE (Official sources only)
+// ═══════════════════════════════════════════════════════════════════════════
+const CONCERNS = {
+  "palm oil": { concern: "High in saturated fat. Excess saturated fat raises LDL (bad) cholesterol.", source: "American Heart Association" },
+  "sugar": { concern: "Excess sugar intake linked to obesity, type 2 diabetes and tooth decay.", source: "WHO Global Sugar Guidelines 2015" },
+  "salt": { concern: "High sodium intake linked to elevated blood pressure. WHO recommends less than 2000mg per day.", source: "WHO Sodium Guidelines" },
+  "sodium": { concern: "High sodium intake linked to elevated blood pressure. WHO recommends less than 2000mg per day.", source: "WHO Sodium Guidelines" },
+  "high fructose corn syrup": { concern: "Linked to increased triglycerides and insulin resistance in studies.", source: "American Journal of Clinical Nutrition" },
+  "refined wheat flour": { concern: "High glycemic index — causes rapid blood sugar spikes due to low fiber content.", source: "Harvard Medical School" },
+  "maida": { concern: "Highly processed flour with low fiber. High glycemic index causes rapid blood sugar spikes.", source: "ICMR Dietary Guidelines India" },
+  "artificial flavour": { concern: "Synthetic flavoring with no nutritional value.", source: "FSSAI Food Additives Guidelines" },
+  "artificial color": { concern: "Some artificial colors linked to hyperactivity in children according to EFSA studies.", source: "European Food Safety Authority 2007" },
+  "ins 150d": { concern: "Caramel color class IV. Some studies suggest health concerns at high doses.", source: "CSPI Food Dye Safety Report" },
+  "ins 338": { concern: "Phosphoric acid — erodes tooth enamel and may affect calcium absorption in bones.", source: "Journal of Dental Research" },
+  "ins 211": { concern: "Sodium benzoate preservative. May form benzene (a carcinogen) when combined with Vitamin C.", source: "FDA Food Additive Studies" },
+  "ins 621": { concern: "MSG — flavor enhancer. Generally recognized as safe by FDA at normal consumption levels.", source: "FDA GRAS Database" },
+  "ins 635": { concern: "Disodium ribonucleotides — flavor enhancer to boost savory taste. Safe at regulated amounts per FSSAI.", source: "FSSAI Additive Guidelines India" },
+  "ins 951": { concern: "Aspartame sweetener. Acceptable daily intake: 40mg/kg body weight.", source: "EFSA Aspartame Safety Assessment 2013" },
+  "hydrogenated vegetable oil": { concern: "Source of trans fats. WHO recommends eliminating trans fats from diet completely.", source: "WHO REPLACE Initiative" },
+  "trans fat": { concern: "WHO recommends eliminating trans fats — strongly linked to heart disease.", source: "WHO REPLACE Initiative" },
+  "caffeine": { concern: "Stimulant. Safe limit: 400mg/day for adults, 100mg/day for adolescents.", source: "EFSA Caffeine Safety Assessment" },
+  "aspartame": { concern: "Artificial sweetener. Acceptable daily intake: 40mg/kg body weight per EFSA.", source: "EFSA 2013" },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCORING ENGINE
+// ═══════════════════════════════════════════════════════════════════════════
+function scoreProduct(product) {
+  let score = 100;
+  const factors = [];
+  const n = product.nutriments || {};
+  const p100 = k => {
+    const v = parseFloat(n[k+'_100g'] || n[k] || 0);
+    return isNaN(v) ? 0 : v;
+  };
+
+  const sugar = p100('sugars');
+  if (sugar > 20) { score -= 25; factors.push({ label:'Very high sugar', impact:-25, value:`${sugar.toFixed(1)}g/100g`, source:'WHO: >20g/100g is very high' }); }
+  else if (sugar > 10) { score -= 15; factors.push({ label:'High sugar', impact:-15, value:`${sugar.toFixed(1)}g/100g`, source:'WHO Sugar Guidelines' }); }
+  else if (sugar > 5) { score -= 5; factors.push({ label:'Moderate sugar', impact:-5, value:`${sugar.toFixed(1)}g/100g`, source:'WHO Sugar Guidelines' }); }
+  else if (sugar <= 2 && sugar > 0) { score += 5; factors.push({ label:'Low sugar', impact:+5, value:`${sugar.toFixed(1)}g/100g`, source:'WHO Sugar Guidelines' }); }
+
+  const sodiumRaw = p100('sodium');
+  const sodium = sodiumRaw > 0 ? sodiumRaw * 1000 : p100('salt') * 400;
+  if (sodium > 800) { score -= 20; factors.push({ label:'Very high sodium', impact:-20, value:`${sodium.toFixed(0)}mg/100g`, source:'WHO: <2000mg/day recommended' }); }
+  else if (sodium > 400) { score -= 10; factors.push({ label:'High sodium', impact:-10, value:`${sodium.toFixed(0)}mg/100g`, source:'WHO Sodium Guidelines' }); }
+
+  const satFat = p100('saturated-fat');
+  if (satFat > 10) { score -= 20; factors.push({ label:'Very high saturated fat', impact:-20, value:`${satFat.toFixed(1)}g/100g`, source:'AHA: raises LDL cholesterol' }); }
+  else if (satFat > 5) { score -= 10; factors.push({ label:'High saturated fat', impact:-10, value:`${satFat.toFixed(1)}g/100g`, source:'American Heart Association' }); }
+
+  const fiber = p100('fiber');
+  if (fiber > 6) { score += 15; factors.push({ label:'High fiber', impact:+15, value:`${fiber.toFixed(1)}g/100g`, source:'ICMR: fiber supports digestion & heart health' }); }
+  else if (fiber > 3) { score += 8; factors.push({ label:'Good fiber', impact:+8, value:`${fiber.toFixed(1)}g/100g`, source:'ICMR Dietary Guidelines India' }); }
+
+  const protein = p100('proteins');
+  if (protein > 15) { score += 10; factors.push({ label:'High protein', impact:+10, value:`${protein.toFixed(1)}g/100g`, source:'ICMR: protein supports muscle & metabolism' }); }
+  else if (protein > 8) { score += 5; factors.push({ label:'Good protein', impact:+5, value:`${protein.toFixed(1)}g/100g`, source:'ICMR Dietary Guidelines India' }); }
+
+  const energy = p100('energy-kcal') || p100('energy') / 4.184;
+  if (energy > 500) { score -= 10; factors.push({ label:'Very high calorie density', impact:-10, value:`${Math.round(energy)} kcal/100g`, source:'Based on 2000 kcal/day recommendation' }); }
+
+  const ns = product.nutriscore_grade;
+  if (ns === 'a') { score += 10; factors.push({ label:'Nutri-Score A (best)', impact:+10, value:'Grade A', source:'Official Nutri-Score system' }); }
+  else if (ns === 'e') { score -= 10; factors.push({ label:'Nutri-Score E (lowest)', impact:-10, value:'Grade E', source:'Official Nutri-Score system' }); }
+
+  score = Math.max(5, Math.min(100, Math.round(score)));
+
+  let stars, label, color;
+  if (score >= 86) { stars=5; label='Excellent'; color='#16a34a'; }
+  else if (score >= 71) { stars=4; label='Great'; color='#22c55e'; }
+  else if (score >= 51) { stars=3; label='Good'; color='#eab308'; }
+  else if (score >= 31) { stars=2; label='Moderate'; color='#f97316'; }
+  else { stars=1; label='Bad'; color='#ef4444'; }
+
+  return { score, stars, label, color, factors };
+}
+
+function getStarsHTML(stars, color) {
+  let h = '';
+  for (let i = 1; i <= 5; i++) h += `<span class="star" style="font-size:18px;color:${i<=stars?'#fbbf24':'#e5e7eb'}">★</span>`;
+  return h;
+}
+
+function getScoreRingSVG(score, color, size=82) {
+  const r = size*0.37, circ = 2*Math.PI*r, offset = circ-(score/100)*circ, c = size/2;
+  return `<div class="score-ring-wrap" style="width:${size}px;height:${size}px;flex-shrink:0">
+    <svg width="${size}" height="${size}" style="transform:rotate(-90deg)">
+      <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="${size*0.09}"/>
+      <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${color}" stroke-width="${size*0.09}"
+        stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round"/>
+    </svg>
+    <div class="score-ring-num" style="font-size:${size*0.22}px;color:${color}">${score}</div>
+  </div>`;
+}
+
+function getCatIcon(cats) {
+  if (!cats) return '🍽️';
+  const c = cats.toLowerCase();
+  if (c.includes('beverage')||c.includes('soda')||c.includes('soft drink')) return '🥤';
+  if (c.includes('noodle')||c.includes('pasta')) return '🍜';
+  if (c.includes('snack')||c.includes('chip')) return '🍿';
+  if (c.includes('biscuit')||c.includes('cookie')) return '🍪';
+  if (c.includes('chocolate')) return '🍫';
+  if (c.includes('dairy')||c.includes('milk')) return '🥛';
+  if (c.includes('juice')) return '🧃';
+  if (c.includes('water')) return '💧';
+  if (c.includes('cereal')||c.includes('grain')) return '🥣';
+  if (c.includes('sauce')||c.includes('condiment')) return '🫙';
+  if (c.includes('oil')) return '🫒';
+  if (c.includes('bread')) return '🍞';
+  return '🍽️';
+}
+
+function getIngredientConcerns(ingredientsText) {
+  if (!ingredientsText) return [];
+  const text = ingredientsText.toLowerCase();
+  return Object.entries(CONCERNS).filter(([k]) => text.includes(k)).map(([k,v]) => ({ name:k, ...v }));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════════════════════════════════════════
+let searchTimeout;
+const inp = document.getElementById('search-input');
+inp.addEventListener('input', () => {
+  document.getElementById('btn-clear').style.display = inp.value ? 'block' : 'none';
+  clearTimeout(searchTimeout);
+  if (inp.value.length > 2) searchTimeout = setTimeout(doSearch, 600);
+  else { document.getElementById('search-dropdown').style.display = 'none'; }
+});
+inp.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+function clearSearch() {
+  inp.value = '';
+  document.getElementById('btn-clear').style.display = 'none';
+  document.getElementById('search-dropdown').style.display = 'none';
+  document.getElementById('search-status').innerHTML = '';
+}
+
+async function doSearch() {
+  const q = inp.value.trim();
+  if (!q) return;
+  const statusEl = document.getElementById('search-status');
+  const dropEl = document.getElementById('search-dropdown');
+  const btnEl = document.getElementById('btn-search');
+
+  statusEl.innerHTML = '<div style="color:#bbf7d0;font-size:13px;margin-top:10px">⏳ Searching Open Food Facts database...</div>';
+  dropEl.style.display = 'none';
+  btnEl.disabled = true;
+  btnEl.textContent = '...';
+
+  try {
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12&fields=product_name,brands,image_url,ingredients_text,nutriments,nutriscore_grade,categories,quantity,serving_size`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const products = (data.products || []).filter(p => p.product_name);
+
+    statusEl.innerHTML = '';
+    if (products.length === 0) {
+      statusEl.innerHTML = `<div class="error-msg">No results found for "${q}". Try a different spelling or brand name.</div>`;
+    } else {
+      renderSearchResults(products, dropEl);
+      dropEl.style.display = 'block';
+    }
+  } catch (err) {
+    logError('Search', `Failed to search for "${q}"`, err.message);
+    statusEl.innerHTML = `<div class="error-msg">⚠️ Could not reach Open Food Facts. Check your internet connection.<br/><small>Error saved to log — tap 📋 button to download.</small></div>`;
+  } finally {
+    btnEl.disabled = false;
+    btnEl.textContent = 'Search';
+  }
+}
+
+function renderSearchResults(products, container) {
+  let html = `<div class="search-header">${products.length} results from Open Food Facts</div>`;
+  products.forEach((p, i) => {
+    const s = scoreProduct(p);
+    const imgHtml = p.image_url
+      ? `<img class="search-thumb" src="${p.image_url}" onerror="this.style.display='none'" alt=""/>`
+      : `<div class="search-thumb-placeholder">${getCatIcon(p.categories)}</div>`;
+    html += `<div class="search-item" onclick="openProduct(${i})">
+      ${imgHtml}
+      <div style="flex:1;min-width:0">
+        <div class="search-name">${p.product_name}</div>
+        <div class="search-brand">${p.brands || 'Unknown brand'}</div>
+      </div>
+      <div class="search-score-col">
+        <div class="search-score-num" style="color:${s.color}">${s.score}</div>
+        <div class="stars">${getStarsHTML(s.stars,s.color)}</div>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+  window._searchResults = products;
+}
+
+function openProduct(index) {
+  const product = window._searchResults[index];
+  if (!product) { logError('openProduct', 'Product index not found', `index: ${index}`); return; }
+  renderDetailPage(product);
+  document.getElementById('screen-home').classList.remove('active');
+  document.getElementById('screen-detail').classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DETAIL PAGE RENDERER
+// ═══════════════════════════════════════════════════════════════════════════
+function renderDetailPage(product) {
+  window._currentProduct = product;
+  const scored = scoreProduct(product);
+  const concerns = getIngredientConcerns(product.ingredients_text);
+  const n = product.nutriments || {};
+  const p100 = k => { const v = parseFloat(n[k+'_100g']||n[k]||0); return isNaN(v)?null:v; };
+
+  // Header
+  const imgWrap = document.getElementById('detail-img-wrap');
+  if (product.image_url) {
+    imgWrap.innerHTML = `<img class="product-img" src="${product.image_url}" onerror="this.parentElement.innerHTML='<div class=\\'product-img-placeholder\\'>${getCatIcon(product.categories)}</div>'" alt="${product.product_name}"/>`;
+  } else {
+    imgWrap.innerHTML = `<div class="product-img-placeholder">${getCatIcon(product.categories)}</div>`;
+  }
+
+  document.getElementById('detail-name').textContent = product.product_name;
+  document.getElementById('detail-brand').textContent = (product.brands||'Unknown brand') + (product.quantity ? ` · ${product.quantity}` : '');
+  document.getElementById('detail-score-ring').innerHTML = getScoreRingSVG(scored.score, scored.color, 82);
+  document.getElementById('detail-stars').innerHTML = getStarsHTML(scored.stars, scored.color);
+  document.getElementById('detail-star-label').textContent = scored.label;
+  document.getElementById('detail-star-label').style.color = scored.color;
+
+  if (product.nutriscore_grade) {
+    const ns = document.getElementById('detail-nutriscore');
+    ns.textContent = `Nutri-Score: ${product.nutriscore_grade.toUpperCase()}`;
+    ns.style.display = 'block';
+  }
+
+  // ── NUTRITION TAB
+  const energy = p100('energy-kcal') || (p100('energy') ? p100('energy')/4.184 : null);
+  let nutHtml = `<div class="nutr-card"><div class="nutr-header">Per 100g / 100ml — Source: Open Food Facts</div>`;
+  const rows = [
+    ['Energy', energy ? Math.round(energy) : null, ' kcal', false],
+    ['Protein', p100('proteins'), 'g', false],
+    ['Carbohydrates', p100('carbohydrates'), 'g', false],
+    ['  ↳ Sugars', p100('sugars'), 'g', p100('sugars') > 10],
+    ['Fat', p100('fat'), 'g', false],
+    ['  ↳ Saturated Fat', p100('saturated-fat'), 'g', p100('saturated-fat') > 5],
+    ['Fiber', p100('fiber'), 'g', false],
+    ['Sodium', (p100('sodium')||0)*1000 || (p100('salt')||0)*400 ? Math.round((p100('sodium')||0)*1000 || (p100('salt')||0)*400) : null, 'mg', ((p100('sodium')||0)*1000||(p100('salt')||0)*400) > 400],
+  ];
+  let hasData = false;
+  rows.forEach(([label, val, unit, warn]) => {
+    if (val !== null && val > 0) {
+      hasData = true;
+      nutHtml += `<div class="nutr-row"><span class="nutr-label">${label}</span><span class="nutr-value ${warn?'warn':'ok'}">${val}${unit}</span></div>`;
+    }
+  });
+  if (!hasData) nutHtml += `<div style="padding:14px 0;color:#9ca3af;font-size:13px;text-align:center">Full nutrition data not available for this product in the database yet.</div>`;
+  nutHtml += `</div><div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;line-height:1.8">Data source: Open Food Facts (openfoodfacts.org)<br/>Values per 100g or 100ml as on product label</div>`;
+  document.getElementById('tab-nutrition').innerHTML = nutHtml;
+
+  // ── INGREDIENTS TAB
+  let ingrHtml;
+  if (product.ingredients_text) {
+    ingrHtml = `<div class="ingr-box"><div style="font-size:11px;color:#9ca3af;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">Full Ingredients — as listed on product label</div>${product.ingredients_text}</div>
+    <div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;line-height:1.8">Source: Open Food Facts community database<br/>Ingredients as printed on product packaging</div>`;
+  } else {
+    ingrHtml = `<div class="msg-box"><div class="msg-icon">📋</div><div class="msg-title">Ingredient data not available yet</div><div class="msg-text">This product's ingredient list hasn't been added to Open Food Facts yet.<br/>You can help by contributing at openfoodfacts.org</div></div>`;
+  }
+  document.getElementById('tab-ingredients').innerHTML = ingrHtml;
+
+  // ── SCORE TAB
+  let scoreHtml = `<div class="score-card"><div class="score-top">${getScoreRingSVG(scored.score, scored.color, 70)}<div><div class="stars">${getStarsHTML(scored.stars,scored.color)}</div><div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:800;color:${scored.color};margin-top:4px">${scored.label}</div><div style="font-size:12px;color:#9ca3af">Score: ${scored.score}/100</div></div></div>
+  <div style="font-size:11px;color:#9ca3af;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px">What affected this score</div>`;
+  if (scored.factors.length > 0) {
+    scored.factors.forEach(f => {
+      scoreHtml += `<div class="score-factor">
+        <div class="score-factor-row"><span class="score-factor-label">${f.label}</span><span class="score-factor-pts" style="color:${f.impact<0?'#dc2626':'#16a34a'}">${f.impact>0?'+':''}${f.impact} pts</span></div>
+        <div class="score-bar-bg"><div class="score-bar-fill" style="width:${Math.min(Math.abs(f.impact)*2.5,100)}%;background:${f.impact<0?'#dc2626':'#16a34a'}"></div></div>
+        <div class="score-source">📌 ${f.value} · Source: ${f.source}</div>
+      </div>`;
+    });
+  } else {
+    scoreHtml += `<div style="color:#9ca3af;font-size:13px;text-align:center;padding:10px 0">Not enough nutrition data to show detailed score breakdown.</div>`;
+  }
+  scoreHtml += `</div><div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;line-height:1.8">Scoring based on WHO, American Heart Association & ICMR Dietary Guidelines</div>`;
+  document.getElementById('tab-score').innerHTML = scoreHtml;
+
+  // ── CONCERNS TAB
+  let concHtml;
+  if (concerns.length > 0) {
+    concHtml = `<div class="concern-intro">The following ingredients were found in this product. These are factual statements based on official health guidelines — not claims about this specific brand.</div>`;
+    concerns.forEach(c => {
+      concHtml += `<div class="concern-card"><div class="concern-name">⚠️ ${c.name}</div><div class="concern-text">${c.concern}</div><div class="concern-source">📌 Source: ${c.source}</div></div>`;
+    });
+    concHtml += `<div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;line-height:1.8">All concerns based on WHO, AHA, EFSA, FDA & FSSAI guidelines.<br/>FoodLens provides information only — not medical advice.</div>`;
+  } else {
+    concHtml = `<div class="no-concern"><div style="font-size:36px;margin-bottom:12px">✅</div><div class="msg-title">No flagged ingredients detected</div><div class="msg-text">No ingredients of concern were found in our database for this product.${!product.ingredients_text?' Note: ingredient data may be incomplete.':''}</div></div>`;
+  }
+  document.getElementById('tab-concerns').innerHTML = concHtml;
+
+  // ── ALTERNATIVES TAB (load async)
+  document.getElementById('tab-alternatives').innerHTML = `<div class="loading-wrap"><div class="loading-icon">🌿</div><div class="loading-text">Finding alternatives...</div><div class="loading-sub">Searching same category products</div></div>`;
+  loadAlternatives(product, scored);
+}
+
+async function loadAlternatives(product, scored) {
+  try {
+    const category = (product.categories||'').split(',')[0].trim() || product.product_name.split(' ')[0];
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(category)}&search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,image_url,nutriments,nutriscore_grade,categories`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const alts = (data.products||[])
+      .filter(p => p.product_name && p.product_name !== product.product_name)
+      .map(p => ({ ...p, _scored: scoreProduct(p) }))
+      .sort((a,b) => b._scored.score - a._scored.score)
+      .slice(0,8);
+
+    if (alts.length === 0) {
+      document.getElementById('tab-alternatives').innerHTML = `<div class="msg-box"><div class="msg-icon">🥗</div><div class="msg-title">No alternatives found</div><div class="msg-text">Could not find similar products in the database for this category.</div></div>`;
+      return;
+    }
+
+    let html = `<div class="alt-intro">Healthier alternatives in the same category — same type, better nutrition score.</div><div class="alt-scroll">`;
+    alts.forEach((p,i) => {
+      const s = p._scored;
+      const imgHtml = p.image_url
+        ? `<img class="alt-img" src="${p.image_url}" onerror="this.style.display='none'" alt=""/>`
+        : `<div class="alt-img-placeholder">${getCatIcon(p.categories)}</div>`;
+      html += `<div class="alt-card" onclick="openAltProduct(${i})">
+        <div class="alt-img-wrap">${imgHtml}</div>
+        <div class="alt-card-body">
+          <div class="alt-card-name">${p.product_name}</div>
+          <div class="alt-card-brand">${p.brands||''}</div>
+          <div class="alt-card-score"><span class="alt-score-num" style="color:${s.color}">${s.score}</span><span style="font-size:12px;color:${s.color};font-weight:600">${s.label}</span></div>
+          <div class="stars" style="margin-top:4px">${getStarsHTML(s.stars,s.color)}</div>
+        </div>
+      </div>`;
+    });
+    html += `</div><div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:12px;line-height:1.8">Swipe left/right to see more alternatives<br/>Tap any product for full details</div>`;
+    html += `<div class="ad-banner" style="margin-top:16px">🥦 <span class="ad-label">[AD] </span>Sponsored: Switch to healthier snacks — Shop NutriBox today</div>`;
+    document.getElementById('tab-alternatives').innerHTML = html;
+    window._altResults = alts;
+  } catch (err) {
+    logError('Alternatives', 'Failed to load alternatives', err.message);
+    document.getElementById('tab-alternatives').innerHTML = `<div class="msg-box"><div class="msg-icon">⚠️</div><div class="msg-title">Could not load alternatives</div><div class="msg-text">Error saved to log. Tap 📋 to download error details.</div></div>`;
+  }
+}
+
+function openAltProduct(index) {
+  const product = window._altResults[index];
+  if (!product) return;
+  renderDetailPage(product);
+  window.scrollTo(0,0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+function goHome() {
+  document.getElementById('screen-detail').classList.remove('active');
+  document.getElementById('screen-home').classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BARCODE SCANNER
+// ═══════════════════════════════════════════════════════════════════════════
+let scannerStream = null;
+let codeReader = null;
+
+async function openScanner() {
+  const overlay = document.getElementById('scanner-overlay');
+  overlay.classList.add('open');
+  document.getElementById('scanner-status').textContent = 'Starting camera...';
+  try {
+    if (typeof ZXing === 'undefined') throw new Error('ZXing library not loaded');
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+    const deviceId = devices.length > 1 ? devices[devices.length-1].deviceId : (devices[0]?.deviceId);
+    document.getElementById('scanner-status').textContent = 'Camera ready — point at barcode';
+    await codeReader.decodeFromVideoDevice(deviceId, 'scanner-video', async (result, err) => {
+      if (result) {
+        const barcode = result.getText();
+        document.getElementById('scanner-status').textContent = `✅ Found: ${barcode} — Searching...`;
+        closeScanner();
+        await searchByBarcode(barcode);
+      }
+    });
+  } catch (err) {
+    logError('Barcode Scanner', 'Scanner failed to start', err.message);
+    document.getElementById('scanner-status').textContent = '⚠️ Camera access failed. Please allow camera permission.';
+  }
+}
+
+function closeScanner() {
+  if (codeReader) { try { codeReader.reset(); } catch(e){} codeReader = null; }
+  if (scannerStream) { scannerStream.getTracks().forEach(t => t.stop()); scannerStream = null; }
+  document.getElementById('scanner-overlay').classList.remove('open');
+}
+
+async function searchByBarcode(barcode) {
+  const statusEl = document.getElementById('search-status');
+  statusEl.innerHTML = `<div style="color:#bbf7d0;font-size:13px;margin-top:10px">⏳ Looking up barcode ${barcode}...</div>`;
+  try {
+    const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.status !== 1) throw new Error('Product not found in database');
+    const product = data.product;
+    statusEl.innerHTML = '';
+    window._searchResults = [product];
+    openProduct(0);
+  } catch (err) {
+    logError('Barcode Lookup', `Barcode ${barcode} lookup failed`, err.message);
+    statusEl.innerHTML = `<div class="error-msg">⚠️ Barcode ${barcode} not found in database. Try searching by name instead.</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PWA INSTALL
+// ═══════════════════════════════════════════════════════════════════════════
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').style.display = 'block';
+});
+document.getElementById('btn-install-confirm').addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') dismissInstall();
+    deferredPrompt = null;
+  }
+});
+function dismissInstall() {
+  document.getElementById('install-banner').style.display = 'none';
+}
+window.addEventListener('appinstalled', () => { dismissInstall(); logError('PWA','App installed successfully',''); });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SERVICE WORKER (PWA offline support)
+// ═══════════════════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator && !window.location.hostname.includes('claude')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err => {
+      // Only log if not a preview environment
+      if (!window.location.hostname.includes('localhost')) {
+        logError('ServiceWorker', 'SW registration failed', err.message);
+      }
+    });
+  });
+}
+</script>
+</body>
+</html>
